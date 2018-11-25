@@ -1,0 +1,70 @@
+---
+title: "R-HW2-AbinithaShivakumar"
+author: "Abinitha Shivakumar"
+date: "October 30, 2018"
+output: html_document
+---
+
+Answer 1:
+```{r}
+library(tidyverse)
+library(gains)
+library(leaps)
+library(caret)
+
+SystemAdministrators <- read.csv("SystemAdministrators.csv", header = TRUE)
+head(SystemAdministrators)
+View(SystemAdministrators)
+set.seed(1)
+
+ggplot(SystemAdministrators, aes(x=Experience, y=Training, color= Completed.task)) + geom_point(size = 3, shape = 21) + labs(title = 'Training vs Experience', y='Training credits', x='Experience')
+```
+
+The number of years of experience is a better predictor than the training credits as we see from the plot that most of the tasks which are not completed have less than 8 years of experience. We can observe that it is the same for 4,6 and 8 training credits. We can infer that training credits have lesser impact on completion of the task as compared to experience.
+
+
+Answer 2:
+
+```{r}
+
+logit.reg <- glm(Completed.task ~ ., data = SystemAdministrators, family = "binomial") 
+options(scipen=999)
+summary(logit.reg)
+
+prediction=predict(logit.reg, SystemAdministrators[,-3],type='response')
+prediction = ifelse(prediction > 0.5, 1, 0)
+prediction
+
+#confusion matrix
+confusionmatrix = table(SystemAdministrators[, 3], prediction)
+confusionmatrix
+
+```
+
+Answer continued : 5 - incorrect and 15 completed, the percentage of programmers classified incorrectly as failing to complete the task is:
+
+5/15 * 100 = 33.33%
+
+
+
+Answer 3:
+p=0.6
+odds=p/1-p
+odds=0.6/0.4
+odds=1.5
+log(odds)=B0+ B1x1 + B2x2
+log(1.5)= -10.9813 + 1.1269 (experience)+0.1805 (Traininig)
+0.1761=-10.9813 + 1.1269(experience)+0.1805 (6)
+experience=(0.1761+10.9813-1.083)/1.1269
+experience=8.94
+
+
+
+
+
+
+
+
+
+
+

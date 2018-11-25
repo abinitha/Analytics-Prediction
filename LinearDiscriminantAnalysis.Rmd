@@ -1,0 +1,184 @@
+---
+title: "Untitled"
+author: "Abinitha Shivakumar"
+date: "November 16, 2018"
+output: html_document
+---
+
+```{r}
+
+library(data.table)
+library(MASS)
+library(caret)
+library(gains)
+library(dplyr)
+
+#import data from website
+data.df <- fread("https://archive.ics.uci.edu/ml/machine-learning-databases/spambase/spambase.data")
+
+#Does not work for column names
+#names <- fread("https://archive.ics.uci.edu/ml/machine-learning-databases/spambase/spambase.names")
+#names(data.df) <- sapply((1:nrow(names)),function(i) toString(names[i,1]))
+
+#Normalizing data
+data.df1 <- preProcess(data.df[,-58], method = c("center", "scale"))
+data.df1[[58]] <- data.df$spam
+data.dfnew <- predict(data.df1, data.df)
+data.dfnew
+ 
+
+#extract data from website and append to columnnames 
+columnnames<- c("word_freq_make" ,"word_freq_address" ,"word_freq_all" ,"word_freq_3d" ,
+                "word_freq_our" ,"word_freq_over" ,"word_freq_remove" ,"word_freq_internet" ,
+                "word_freq_order" ,"word_freq_mail" ,"word_freq_receive" ,"word_freq_will" ,
+                "word_freq_people" ,"word_freq_report" ,"word_freq_addresses" ,"word_freq_free" ,
+                "word_freq_business" ,"word_freq_email" ,"word_freq_you" ,"word_freq_credit" ,
+                "word_freq_your" ,"word_freq_font" ,"word_freq_000" ,"word_freq_money" ,
+                "word_freq_hp" ,"word_freq_hpl" ,"word_freq_george" ,"word_freq_650" ,
+                "word_freq_lab" ,"word_freq_labs" ,"word_freq_telnet" ,"word_freq_857" ,
+                "word_freq_data" ,"word_freq_415" ,"word_freq_85" ,"word_freq_technology" ,
+                "word_freq_1999" ,"word_freq_parts" ,"word_freq_pm" ,"word_freq_direct" ,
+                "word_freq_cs" ,"word_freq_meeting" ,"word_freq_original" ,"word_freq_project" ,
+                "word_freq_re" ,"word_freq_edu" ,"word_freq_table" ,"word_freq_conference" ,
+                "char_freq_;" ,"char_freq_(" ,"char_freq_[" ,"char_freq_!" ,"char_freq_$" ,
+                "char_freq_#" ,"capital_run_length_average" ,"capital_run_length_longest" ,
+                "capital_run_length_total" , "spam")
+
+#assign column names to dataframe
+colnames(data.dfnew) <- columnnames
+
+columnnames
+#Exploring dataset
+head(data.dfnew)
+summary(data.dfnew$spam)
+
+class(data.dfnew$spam)
+#data.df$spam = as.factor(data.df$spam)
+levels(data.dfnew$spam)
+summary(data.dfnew)
+summary(data.dfnew$spam)
+table(data.dfnew$spam)
+
+#/(2788+1813)*100
+#60.6% spam emails and 39.4% non-spam emails
+
+#Aggregating all columns on spam and fining mean of spam and non spam emails
+meandata.df <-  (aggregate(.~spam, data=data.dfnew, mean))
+
+
+#number of columns
+dim(meandata.df)[2]
+
+class(meandata.df)
+
+colnames(meandata.df[1]) 
+
+df <- data.frame(matrix(ncol = 58, nrow = 1)) 
+df
+#assign new column names with spam as first column 
+newcolumnnames<- c("spam", "word_freq_make" ,"word_freq_address" ,"word_freq_all" ,"word_freq_3d" ,
+                   "word_freq_our" ,"word_freq_over" ,"word_freq_remove" ,"word_freq_internet" ,
+                   "word_freq_order" ,"word_freq_mail" ,"word_freq_receive" ,"word_freq_will" ,
+                   "word_freq_people" ,"word_freq_report" ,"word_freq_addresses" ,"word_freq_free" ,
+                   "word_freq_business" ,"word_freq_email" ,"word_freq_you" ,"word_freq_credit" ,
+                   "word_freq_your" ,"word_freq_font" ,"word_freq_000" ,"word_freq_money" ,
+                   "word_freq_hp" ,"word_freq_hpl" ,"word_freq_george" ,"word_freq_650" ,
+                   "word_freq_lab" ,"word_freq_labs" ,"word_freq_telnet" ,"word_freq_857" ,
+                   "word_freq_data" ,"word_freq_415" ,"word_freq_85" ,"word_freq_technology" ,
+                   "word_freq_1999" ,"word_freq_parts" ,"word_freq_pm" ,"word_freq_direct" ,
+                   "word_freq_cs" ,"word_freq_meeting" ,"word_freq_original" ,"word_freq_project" ,
+                   "word_freq_re" ,"word_freq_edu" ,"word_freq_table" ,"word_freq_conference" ,
+                   "char_freq_;" ,"char_freq_(" ,"char_freq_[" ,"char_freq_!" ,"char_freq_$" ,
+                   "char_freq_#" ,"capital_run_length_average" ,"capital_run_length_longest" ,
+                   "capital_run_length_total")
+
+
+colnames(df) <- newcolumnnames
+df
+
+#Extracting the differences of class 1 and class 0 for each variable
+for(i in c(1:dim(meandata.df)[2])){
+      df[i] <- list(abs(meandata.df[[i]][1] - meandata.df[[i]][2]))
+}
+
+#Sort the dataframe by descending order to select top 10 columns , excluding spam column
+df<- sort(df, decreasing = TRUE)
+df
+#selecting only the first 10 (11, including spam)columns
+predictorcolnames<-  colnames(df)[1:11]
+
+#
+predictorcolnames
+
+# Split the data into training (80%) and validation/test set (20%)
+#Partioning the dataset 
+set.seed(1)
+training.index <- createDataPartition(data.dfnew$spam, p = 0.8, list = FALSE)
+data.df.train <- data.dfnew[training.index, ]
+data.df.valid <- data.dfnew[-training.index, ]
+
+#Selecting the top 10 variables (obtained earlier) for training and validation
+data.df.train <- data.df.train[,c("spam", "word_freq_your", "word_freq_000", "word_freq_remove", "char_freq_$", "word_freq_you", "word_freq_free", "word_freq_business", "word_freq_hp","capital_run_length_total", "word_freq_our")]
+
+#data.df.train
+
+data.df.valid <- data.df.valid[,c("spam", "word_freq_your", "word_freq_000", "word_freq_remove", "char_freq_$", "word_freq_you", "word_freq_free", "word_freq_business", "word_freq_hp","capital_run_length_total", "word_freq_our")]
+
+data.df.valid
+
+# run lda()
+lda2 <- lda(data.df.train$spam ~., data = data.df.train)
+# output
+#lda2
+
+
+# predict - using training data 
+lda.train <- predict(lda2)
+#lda.train
+table(lda.train$class, data.df.train$spam) 
+
+# predict - using validation data
+lda.test <- predict(lda2, data.df.valid)
+
+lda.test$class
+# check model accuracy
+xtab <- table(lda.test$class, data.df.valid$spam)  # pred v actual
+mean(lda.test$class == data.df.valid$spam)  # percent accurate
+
+sum(lda.test$posterior[, 1] >=.5)
+
+caret::confusionMatrix(xtab)
+
+#specificity is 70.33% and sensitivity is 95.86%
+data.df.valid 
+
+#lift chart
+
+spamgain <- gains(data.df.valid$spam, lda.test$x)
+options(scipen=999)
+
+spam <- data.df.valid$spam
+plot(c(0,spamgain$cume.pct.of.total*sum(spam))~c(0,spamgain$cume.obs), 
+     xlab="# cases", ylab="Spam", main="Lift Chart", 
+     col = "blue1", type="l")
+
+lines(c(0,sum(spam))~c(0,dim(data.df.valid)[1]), col="brown2", lty=2)
+
+#decile chart
+
+# Decile-wise lift chart
+barplot(spamgain$mean.resp/mean(spam), names.arg = spamgain$depth,
+        xlab = "Percentile", ylab = "Mean Response", main = "Decile-wise lift chart",
+        col = "coral1")
+
+
+```
+
+Answer 3
+
+#LIFT CHART
+We can interpret from the lift chart that in 400 cases, 320 spams can be identified from the model
+when compared to the naive model which identifies 150 spams amongst 400 cases.
+
+#DECILE CHART
+We can interpret that this model is 2.5 times more effective than the naive model in predicting spam emails when using the top 10 percentile of data.
